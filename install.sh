@@ -6,7 +6,7 @@ if ! command -v go &> /dev/null; then
     sudo apt-get update && sudo apt-get install -y golang-go
 fi
 go mod tidy
-go build -ldflags="-s -w" -o immich-pulse main.go
+CGO_ENABLED=0 go build -ldflags="-s -w" -o immich-pulse main.go
 sudo mv immich-pulse /usr/local/bin/immich-pulse
 sudo chown root:root /usr/local/bin/immich-pulse
 sudo chmod 755 /usr/local/bin/immich-pulse
