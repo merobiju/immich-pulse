@@ -17,7 +17,7 @@
 
 ## 🚀 Quick Install
 ```bash
-git clone https://github.com/YOUR_USERNAME/immich-pulse.git
+git clone https://github.com/merobiju/immich-pulse.git
 cd immich-pulse
 ./install.sh
 immich-pulse
