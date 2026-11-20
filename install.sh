@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -e
+echo "⚡ Installing ImmichPulse TUI Dashboard..."
+if ! command -v go &> /dev/null; then
+    echo "📦 Installing Go..."
+    sudo apt-get update && sudo apt-get install -y golang-go
+fi
+go mod tidy
+go build -ldflags="-s -w" -o immich-pulse main.go
+sudo mv immich-pulse /usr/local/bin/immich-pulse
+sudo chown root:root /usr/local/bin/immich-pulse
+sudo chmod 755 /usr/local/bin/immich-pulse
+echo "✅ Installed! Run 'immich-pulse' anytime."
