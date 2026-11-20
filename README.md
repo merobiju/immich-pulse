@@ -28,10 +28,10 @@ Heavy web dashboards eat up RAM and CPU on your home server. **ImmichPulse** giv
 ## 🚀 Quick Install (Linux — 1 Command)
 
 ```bash
-git clone https://github.com && cd immich-pulse && ./install.sh
+git clone https://github.com/merobiju/immich-pulse.git && cd immich-pulse && ./install.sh
 ```
 
-Or download pre-compiled binaries directly from the [**Releases Page**](https://github.com) on the right.
+Or download pre-compiled binaries directly from the [**Releases Page**](https://github.com/merobiju/immich-pulse/releases/latest) on the right.
 
 ---
 
@@ -50,7 +50,7 @@ Or download pre-compiled binaries directly from the [**Releases Page**](https://
 Want your Immich dashboard to greet you every time you SSH into your server? Run this once:
 
 ```bash
-echo -e '\n# ImmichPulse Dashboard\nif [[ \$- == *i* ]]; then\n  immich\nfi' >> ~/.bashrc
+echo -e '\n# ImmichPulse Dashboard\nif [[ $- == *i* ]]; then\n  immich\nfi' >> ~/.bashrc
 ```
 
 ---
@@ -65,7 +65,7 @@ sudo rm -f /usr/local/bin/immich /usr/local/bin/immich-pulse
 
 <div align="center">
 
-### 👨‍💻 Crafted with ❤️ in Nepal 🇳🇵 by **[Bijaya Pokhrel](https://github.com)**
+### 👨‍💻 Crafted with ❤️ in Nepal 🇳🇵 by **[Bijaya Pokhrel](https://github.com/merobiju)**
 
 **If ImmichPulse saved you time or looks cool on your server, please drop a ⭐ Star on this repo!**
 
