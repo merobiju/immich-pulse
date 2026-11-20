@@ -1,6 +1,6 @@
 module github.com/merobiju/immich-pulse
 
-go 1.26.8
+go 1.24.0
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.10

@@ -79,6 +79,11 @@ type SysData struct {
 	PhotoCount string
 	VideoCount string
 	UserCount  string
+	PrevRx     uint64
+	PrevTx     uint64
+	PrevNetTs  time.Time
+	WanCache   string
+	WanCacheTs time.Time
 }
 
 type animMsg time.Time
@@ -89,6 +94,7 @@ type model struct {
 	tick       int
 	lastFetch  time.Time
 	fetching   bool
+	privacy    bool
 	cpuHist    []float64
 	netHist    []float64
 	width      int
@@ -108,8 +114,8 @@ func runCmd(cmd string) string {
 	return strings.TrimSpace(string(out))
 }
 
-func (m *model) collectData() SysData {
-	var d SysData
+func collectData(prev SysData) SysData {
+	d := SysData{PrevRx: prev.PrevRx, PrevTx: prev.PrevTx, PrevNetTs: prev.PrevNetTs, WanCache: prev.WanCache, WanCacheTs: prev.WanCacheTs}
 	d.Hostname, _ = os.Hostname()
 	if d.Hostname == "" {
 		d.Hostname = "MEROBIJU"
@@ -196,14 +202,14 @@ func (m *model) collectData() SysData {
 		d.SSID = d.Iface
 	}
 
-	if time.Since(m.wanCacheTs) > 5*time.Minute || m.wanCache == "" {
+	if time.Since(d.WanCacheTs) > 5*time.Minute || d.WanCache == "" {
 		wan := runCmd("curl -4 -s --max-time 2 ifconfig.me || curl -s --max-time 2 icanhazip.com")
 		if wan != "" {
-			m.wanCache = wan
-			m.wanCacheTs = time.Now()
+			d.WanCache = wan
+			d.WanCacheTs = time.Now()
 		}
 	}
-	d.WanIP = m.wanCache
+	d.WanIP = d.WanCache
 	if d.WanIP == "" {
 		d.WanIP = "N/A"
 	}
@@ -211,22 +217,26 @@ func (m *model) collectData() SysData {
 	nIO, _ := net.IOCounters(true)
 	now := time.Now()
 	for _, nic := range nIO {
-		if nic.Name == d.Iface {
-			if !m.prevNetTs.IsZero() {
-				dt := now.Sub(m.prevNetTs).Seconds()
+		if nic.Name == d.Iface || (d.Iface == "" && nic.Name != "lo" && !strings.HasPrefix(nic.Name, "docker") && !strings.HasPrefix(nic.Name, "br-") && !strings.HasPrefix(nic.Name, "veth")) {
+			if !d.PrevNetTs.IsZero() {
+				dt := now.Sub(d.PrevNetTs).Seconds()
 				if dt > 0 {
-					d.RxKbps = float64(nic.BytesRecv-m.prevRx) * 8 / 1000 / dt
-					d.TxKbps = float64(nic.BytesSent-m.prevTx) * 8 / 1000 / dt
+					d.RxKbps = float64(nic.BytesRecv-d.PrevRx) * 8 / 1000 / dt
+					d.TxKbps = float64(nic.BytesSent-d.PrevTx) * 8 / 1000 / dt
 				}
 			}
-			m.prevRx = nic.BytesRecv
-			m.prevTx = nic.BytesSent
-			m.prevNetTs = now
+			d.PrevRx = nic.BytesRecv
+			d.PrevTx = nic.BytesSent
+			d.PrevNetTs = now
 			break
 		}
 	}
 
-	d.LastSSH = runCmd("who | grep bijaya | tail -1 | awk '{print $3, $4, $5}' | tr -d '()'")
+	u := os.Getenv("USER")
+	if u == "" {
+		u = "bijaya"
+	}
+	d.LastSSH = runCmd("who | grep " + u + " | tail -1 | awk '{print $3, $4, $5}' | tr -d '()'")
 	if d.LastSSH == "" {
 		d.LastSSH = fmt.Sprintf("Active (%s)", d.Hostname)
 	}
@@ -274,17 +284,29 @@ func (m *model) collectData() SysData {
 	}
 	d.DockerVer = runCmd("docker --version | awk '{print $3}' | tr -d ','")
 	pgCont := runCmd(`docker ps --format "{{.Names}}" | grep -E "immich[_-]postgres" | head -1`)
-	if pgCont == "" { pgCont = "immich_postgres" }
+	if pgCont == "" {
+		pgCont = "immich_postgres"
+	}
 	dbU := runCmd(fmt.Sprintf(`docker exec %s env | grep POSTGRES_USER | cut -d= -f2`, pgCont))
-	if dbU == "" { dbU = "postgres" }
+	if dbU == "" {
+		dbU = "postgres"
+	}
 	dbN := runCmd(fmt.Sprintf(`docker exec %s env | grep POSTGRES_DB | cut -d= -f2`, pgCont))
-	if dbN == "" { dbN = "immich" }
+	if dbN == "" {
+		dbN = "immich"
+	}
 	d.PhotoCount = runCmd(fmt.Sprintf(`docker exec %s psql -U %s -d %s -t -A -c "SELECT count(*) FROM asset WHERE type='IMAGE' AND \"deletedAt\" IS NULL;" 2>/dev/null`, pgCont, dbU, dbN))
 	d.VideoCount = runCmd(fmt.Sprintf(`docker exec %s psql -U %s -d %s -t -A -c "SELECT count(*) FROM asset WHERE type='VIDEO' AND \"deletedAt\" IS NULL;" 2>/dev/null`, pgCont, dbU, dbN))
 	d.UserCount = runCmd(fmt.Sprintf(`docker exec %s psql -U %s -d %s -t -A -c "SELECT count(*) FROM \"user\" WHERE \"deletedAt\" IS NULL;" 2>/dev/null`, pgCont, dbU, dbN))
-	if d.PhotoCount == "" { d.PhotoCount = "0" }
-	if d.VideoCount == "" { d.VideoCount = "0" }
-	if d.UserCount == "" { d.UserCount = "1" }
+	if d.PhotoCount == "" {
+		d.PhotoCount = "0"
+	}
+	if d.VideoCount == "" {
+		d.VideoCount = "0"
+	}
+	if d.UserCount == "" {
+		d.UserCount = "1"
+	}
 
 	dStatsRaw := runCmd("docker stats --no-stream --format '{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}|{{.NetIO}}'")
 	statMap := make(map[string][]string)
@@ -300,7 +322,9 @@ func (m *model) collectData() SysData {
 	for _, bn := range baseNames {
 		alt := strings.ReplaceAll(bn, "_", "-")
 		cn := runCmd(fmt.Sprintf(`docker ps -a --format "{{.Names}}" | grep -E "^(%s|%s)(-[0-9]+)?$" | head -1`, bn, alt))
-		if cn == "" { cn = bn }
+		if cn == "" {
+			cn = bn
+		}
 		st := runCmd(fmt.Sprintf("docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' %s", cn))
 		if st == "" {
 			st = "down"
@@ -324,9 +348,9 @@ func (m *model) collectData() SysData {
 	return d
 }
 
-func fetchCmd(m *model) tea.Cmd {
+func fetchCmd(prev SysData) tea.Cmd {
 	return func() tea.Msg {
-		return dataMsg(m.collectData())
+		return dataMsg(collectData(prev))
 	}
 }
 
@@ -337,7 +361,7 @@ func tickCmd() tea.Cmd {
 }
 
 func (m model) Init() tea.Cmd {
-	return tickCmd()
+	return tea.Batch(tickCmd(), fetchCmd(m.data))
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -349,18 +373,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch strings.ToLower(msg.String()) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "p":
+			m.privacy = !m.privacy
 		case "r":
 			if !m.fetching {
 				m.fetching = true
 				m.lastFetch = time.Now()
-				return m, fetchCmd(&m)
+				return m, fetchCmd(m.data)
 			}
 		}
 	case animMsg:
 		m.tick++
 		if time.Since(m.lastFetch) >= 15*time.Second && !m.fetching {
 			m.fetching = true
-			return m, tea.Batch(tickCmd(), fetchCmd(&m))
+			return m, tea.Batch(tickCmd(), fetchCmd(m.data))
 		}
 		return m, tickCmd()
 	case dataMsg:
@@ -374,8 +400,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 func makeBar(pct float64, width int) string {
-	if pct < 0 { pct = 0 }
-	if pct > 100 { pct = 100 }
+	if pct < 0 {
+		pct = 0
+	}
+	if pct > 100 {
+		pct = 100
+	}
 	filled := int(pct * float64(width) / 100.0)
 	empty := width - filled
 	col := "#00FF87"
@@ -394,19 +424,33 @@ func makeSpark(vals []float64, maxVal float64, color string) string {
 	sparks := []rune("·▪▫▬▮▰▲█")
 	m := maxVal
 	for _, v := range vals {
-		if v > m { m = v }
+		if v > m {
+			m = v
+		}
 	}
-	if m <= 0 { m = 1 }
+	if m <= 0 {
+		m = 1
+	}
 	var sb strings.Builder
 	for _, v := range vals {
 		idx := int((v / m) * 7.99)
-		if idx < 0 { idx = 0 }
-		if idx > 7 { idx = 7 }
+		if idx < 0 {
+			idx = 0
+		}
+		if idx > 7 {
+			idx = 7
+		}
 		sb.WriteRune(sparks[idx])
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render(sb.String())
 }
 
+func maskIP(s string, hide bool) string {
+	if !hide || s == "" || s == "N/A" || s == "Disconnected" {
+		return s
+	}
+	return "•••.•••.•••.•••"
+}
 func fmtSpeed(kbps float64) string {
 	if kbps >= 1000 {
 		return fmt.Sprintf("%.2f Mbps", kbps/1000.0)
@@ -507,15 +551,15 @@ func (m model) View() string {
 	netContent := strings.Join([]string{
 		cyan.Render("🌐 LOCAL NETWORK"),
 		padCol(yellow.Render("📡 WiFi / IF"), 14) + padCol(white.Render(d.SSID), 29) + green.Render("● UP"),
-		padCol(yellow.Render("🏠 Local IP"), 14) + padCol(d.LanIP, 29) + dim.Render("LAN IPv4"),
-		padCol(yellow.Render("🌍 Public IP"), 14) + padCol(d.WanIP, 29) + dim.Render("WAN IPv4"),
+		padCol(yellow.Render("🏠 Local IP"), 14) + padCol(maskIP(d.LanIP, m.privacy), 29) + dim.Render("LAN IPv4"),
+		padCol(yellow.Render("🌍 Public IP"), 14) + padCol(maskIP(d.WanIP, m.privacy), 29) + dim.Render("WAN IPv4"),
 		padCol(yellow.Render("🚀 Traffic"), 14) + padCol(fmt.Sprintf("▼ %s  ▲ %s", fmtSpeed(d.RxKbps), fmtSpeed(d.TxKbps)), 29) + makeSpark(m.netHist, 1000, "#00FF87"),
 		padCol(yellow.Render("🔒 Last SSH"), 14) + padCol(d.LastSSH, 29) + fBadge,
 	}, "\n")
 
 	tsLines := []string{
 		magenta.Render("🔒 TAILSCALE VPN"),
-		padCol(yellow.Render("🔗 Status"), 14) + padCol(green.Render("● CONNECTED"), 25) + white.Render(d.TsIP),
+		padCol(yellow.Render("🔗 Status"), 14) + padCol(green.Render("● CONNECTED"), 25) + white.Render(maskIP(d.TsIP, m.privacy)),
 		padCol(yellow.Render("🌐 MagicDNS"), 14) + padCol(cyan.Render(d.MagicDNS), 33) + dim.Render("ts.net"),
 	}
 	for i := 0; i < 3; i++ {
@@ -527,7 +571,7 @@ func (m model) View() string {
 				dot = green.Render("●")
 				st = green.Render("online")
 			}
-			tsLines = append(tsLines, " "+padCol(dot+" "+p.Name, 15)+padCol(p.IP, 27)+st)
+			tsLines = append(tsLines, " "+padCol(dot+" "+p.Name, 15)+padCol(maskIP(p.IP, m.privacy), 27)+st)
 		} else {
 			tsLines = append(tsLines, "")
 		}
@@ -580,20 +624,24 @@ func (m model) View() string {
 	spinners := []string{"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"}
 	spin := spinners[(m.tick/2)%len(spinners)]
 	rem := 15 - int(time.Since(m.lastFetch).Seconds())
-	if rem < 1 { rem = 1 }
+	if rem < 1 {
+		rem = 1
+	}
 
 	sysStat := green.Render("● ALL SYSTEMS OPERATIONAL")
 	if !d.AllHealthy {
 		sysStat = yellow.Render("▲ SOME SERVICES DEGRADED")
 	}
 	leftFtr := fmt.Sprintf(" %s│%s│%s",
-		sysStat, cyan.Render(fmt.Sprintf(" %s %02ds ", spin, rem)), yellow.Render(" 'r' refresh • 'q' exit"),
+		sysStat, cyan.Render(fmt.Sprintf(" %s %02ds ", spin, rem)), yellow.Render(" 'r' sync • 'p' hide • 'q' quit"),
 	)
 	rightFtr := fmt.Sprintf("%s • %s • %s ",
 		yellow.Render("by Bijaya Pokhrel"), cyan.Render("Immich "+d.ImmichVer), magenta.Render("Docker "+d.DockerVer),
 	)
 	gap := 118 - lipgloss.Width(leftFtr) - lipgloss.Width(rightFtr)
-	if gap < 1 { gap = 1 }
+	if gap < 1 {
+		gap = 1
+	}
 
 	footerBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -614,7 +662,6 @@ func main() {
 		netHist:   make([]float64, 12),
 		lastFetch: time.Now(),
 	}
-	m.data = m.collectData()
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error:", err)
