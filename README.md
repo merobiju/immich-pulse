@@ -1,6 +1,12 @@
 # ⚡ ImmichPulse — Ultra-Light Terminal Dashboard (TUI) for Immich
 
+![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)
+![Bubble Tea](https://img.shields.io/badge/UI-Bubble_Tea-FF79C6?style=flat)
+![License](https://img.shields.io/badge/License-MIT-00FF87?style=flat)
+
 **ImmichPulse** is a lightweight, statically linked Terminal UI (TUI) dashboard built in Go for self-hosted **Immich** servers.
+
+![ImmichPulse Screenshot](screenshot.png)
 
 ## 🚀 Quick Install (One-Line)
 ```bash
