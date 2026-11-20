@@ -273,13 +273,15 @@ func (m *model) collectData() SysData {
 		d.ImmichVer = "v" + d.ImmichVer
 	}
 	d.DockerVer = runCmd("docker --version | awk '{print $3}' | tr -d ','")
-	dbU := runCmd(`docker exec immich_postgres env | grep POSTGRES_USER | cut -d= -f2`)
+	pgCont := runCmd(`docker ps --format "{{.Names}}" | grep -E "immich[_-]postgres" | head -1`)
+	if pgCont == "" { pgCont = "immich_postgres" }
+	dbU := runCmd(fmt.Sprintf(`docker exec %s env | grep POSTGRES_USER | cut -d= -f2`, pgCont))
 	if dbU == "" { dbU = "postgres" }
-	dbN := runCmd(`docker exec immich_postgres env | grep POSTGRES_DB | cut -d= -f2`)
+	dbN := runCmd(fmt.Sprintf(`docker exec %s env | grep POSTGRES_DB | cut -d= -f2`, pgCont))
 	if dbN == "" { dbN = "immich" }
-	d.PhotoCount = runCmd(fmt.Sprintf(`docker exec immich_postgres psql -U %s -d %s -t -A -c "SELECT count(*) FROM asset WHERE type='IMAGE' AND \"deletedAt\" IS NULL;" 2>/dev/null`, dbU, dbN))
-	d.VideoCount = runCmd(fmt.Sprintf(`docker exec immich_postgres psql -U %s -d %s -t -A -c "SELECT count(*) FROM asset WHERE type='VIDEO' AND \"deletedAt\" IS NULL;" 2>/dev/null`, dbU, dbN))
-	d.UserCount = runCmd(fmt.Sprintf(`docker exec immich_postgres psql -U %s -d %s -t -A -c "SELECT count(*) FROM \"user\" WHERE \"deletedAt\" IS NULL;" 2>/dev/null`, dbU, dbN))
+	d.PhotoCount = runCmd(fmt.Sprintf(`docker exec %s psql -U %s -d %s -t -A -c "SELECT count(*) FROM asset WHERE type='IMAGE' AND \"deletedAt\" IS NULL;" 2>/dev/null`, pgCont, dbU, dbN))
+	d.VideoCount = runCmd(fmt.Sprintf(`docker exec %s psql -U %s -d %s -t -A -c "SELECT count(*) FROM asset WHERE type='VIDEO' AND \"deletedAt\" IS NULL;" 2>/dev/null`, pgCont, dbU, dbN))
+	d.UserCount = runCmd(fmt.Sprintf(`docker exec %s psql -U %s -d %s -t -A -c "SELECT count(*) FROM \"user\" WHERE \"deletedAt\" IS NULL;" 2>/dev/null`, pgCont, dbU, dbN))
 	if d.PhotoCount == "" { d.PhotoCount = "0" }
 	if d.VideoCount == "" { d.VideoCount = "0" }
 	if d.UserCount == "" { d.UserCount = "1" }
