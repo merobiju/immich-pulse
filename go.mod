@@ -1,4 +1,4 @@
-module merobiju
+module github.com/merobiju/immich-pulse
 
 go 1.26.8
 

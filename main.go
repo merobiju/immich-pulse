@@ -266,7 +266,7 @@ func (m *model) collectData() SysData {
 		}
 	}
 
-	d.ImmichVer = runCmd(`docker exec immich_server cat /usr/src/app/package.json 2>/dev/null | grep -m1 '"version"' | cut -d'"' -f4`)
+	d.ImmichVer = runCmd(`docker exec $(docker ps --format "{{.Names}}" | grep -E "immich[_-]server" | head -1) cat /usr/src/app/package.json 2>/dev/null | grep -m1 '"version"' | cut -d'"' -f4`)
 	if d.ImmichVer == "" {
 		d.ImmichVer = "v3.4.2"
 	} else if !strings.HasPrefix(d.ImmichVer, "v") {
@@ -295,9 +295,12 @@ func (m *model) collectData() SysData {
 		}
 	}
 
-	cNames := []string{"immich_server", "immich_postgres", "immich_redis", "immich_machine_learning"}
+	baseNames := []string{"immich_server", "immich_postgres", "immich_redis", "immich_machine_learning"}
 	d.AllHealthy = true
-	for _, cn := range cNames {
+	for _, bn := range baseNames {
+		alt := strings.ReplaceAll(bn, "_", "-")
+		cn := runCmd(fmt.Sprintf(`docker ps -a --format "{{.Names}}" | grep -E "^(%s|%s)(-[0-9]+)?$" | head -1`, bn, alt))
+		if cn == "" { cn = bn }
 		st := runCmd(fmt.Sprintf("docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' %s", cn))
 		if st == "" {
 			st = "down"
