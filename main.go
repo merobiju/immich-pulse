@@ -560,7 +560,7 @@ func (m model) View() string {
 	tsLines := []string{
 		magenta.Render("🔒 TAILSCALE VPN"),
 		padCol(yellow.Render("🔗 Status"), 14) + padCol(green.Render("● CONNECTED"), 25) + white.Render(maskIP(d.TsIP, m.privacy)),
-		padCol(yellow.Render("🌐 MagicDNS"), 14) + padCol(cyan.Render(d.MagicDNS), 33) + dim.Render("ts.net"),
+		padCol(yellow.Render("🌐 MagicDNS"), 14) + padCol(cyan.Render(d.MagicDNS), 33) + dim.Render("Tailnet"),
 	}
 	for i := 0; i < 3; i++ {
 		if i < len(d.Peers) {
@@ -621,28 +621,35 @@ func (m model) View() string {
 		Padding(0, 1).
 		Render(strings.Join(dRows, "\n"))
 
-	spinners := []string{"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"}
-	spin := spinners[(m.tick/2)%len(spinners)]
-	rem := 15 - int(time.Since(m.lastFetch).Seconds())
-	if rem < 1 {
-		rem = 1
+	fwR := []string{
+		cyan.Render("▸") + dim.Render("▸▸"),
+		cyan.Render("▸") + white.Render("▶") + dim.Render("▸"),
+		green.Render("▸") + cyan.Render("▶") + white.Render("▶"),
+		dim.Render("▸") + green.Render("▶") + white.Render("▶"),
+		dim.Render("▸▸") + white.Render("▶"),
+		dim.Render("▸▸▸"),
+	}
+	fwL := []string{
+		dim.Render("◂◂") + cyan.Render("◂"),
+		dim.Render("◂") + white.Render("◀") + cyan.Render("◂"),
+		white.Render("◀") + cyan.Render("◀") + green.Render("◂"),
+		white.Render("◀") + green.Render("◀") + dim.Render("◂"),
+		white.Render("◀") + dim.Render("◂◂"),
+		dim.Render("◂◂◂"),
+	}
+	sysStat := green.Render("● OPERATIONAL")
+	if m.fetching {
+		sysStat = cyan.Render("⚡ SYNCING")
+	} else if !d.AllHealthy {
+		sysStat = yellow.Render("▲ DEGRADED")
 	}
 
-	sysStat := green.Render("● ALL SYSTEMS OPERATIONAL")
-	if !d.AllHealthy {
-		sysStat = yellow.Render("▲ SOME SERVICES DEGRADED")
-	}
-	leftFtr := fmt.Sprintf(" %s│%s│%s",
-		sysStat, cyan.Render(fmt.Sprintf(" %s %02ds ", spin, rem)), yellow.Render(" 'r' sync • 'p' hide • 'q' quit"),
-	)
-	rightFtr := fmt.Sprintf("%s • %s • %s ",
-		yellow.Render("by Bijaya Pokhrel"), cyan.Render("Immich "+d.ImmichVer), magenta.Render("Docker "+d.DockerVer),
-	)
+	leftFtr := fmt.Sprintf(" %s %s %s │ %s", lStr, fwR[m.tick%6], sysStat, yellow.Render("'r' sync • 'p' hide • 'q' quit"))
+	rightFtr := fmt.Sprintf("%s • %s • %s %s %s ", yellow.Render("by Bijaya Pokhrel"), cyan.Render("Immich "+d.ImmichVer), magenta.Render("Docker "+d.DockerVer), fwL[m.tick%6], lStr)
 	gap := 118 - lipgloss.Width(leftFtr) - lipgloss.Width(rightFtr)
 	if gap < 1 {
 		gap = 1
 	}
-
 	footerBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#00FF87")).
