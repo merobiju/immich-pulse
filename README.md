@@ -6,7 +6,9 @@
 
 Built in **Go** with zero runtime dependencies. Monitor your entire Immich stack, hardware thermals, network speed, and Tailscale VPN from a single SSH screen.
 
-![ImmichPulse Dashboard](screenshot.png)
+![ImmichPulse Live Demo](screenshot.gif)
+
+*Live 10-second TUI demo showing real-time telemetry, forced sync (`r`), and 1-key privacy masking (`p`).*
 
 </div>
 
