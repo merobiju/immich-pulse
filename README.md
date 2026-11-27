@@ -2,6 +2,11 @@
 
 # ⚡ ImmichPulse
 
+[![Latest Release](https://img.shields.io/github/v/release/merobiju/immich-pulse?style=for-the-badge&color=00FFFF&labelColor=111111)](https://github.com/merobiju/immich-pulse/releases/latest)
+[![Total Downloads](https://img.shields.io/github/downloads/merobiju/immich-pulse/total?style=for-the-badge&color=00FF87&labelColor=111111)](https://github.com/merobiju/immich-pulse/releases)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go&logoColor=white&labelColor=111111)](https://go.dev/)
+[![License](https://img.shields.io/github/license/merobiju/immich-pulse?style=for-the-badge&color=FFD700&labelColor=111111)](LICENSE)
+
 **The fastest, ultra-lightweight (~3.8MB) Terminal UI (TUI) & CLI Dashboard for self-hosted Immich servers.**
 
 Built in **Go** with zero runtime dependencies and a parallel concurrent engine. Monitor your entire Immich Docker stack, PostgreSQL media stats, hardware thermals, network speed, and Tailscale VPN from a single SSH screen.
