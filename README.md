@@ -33,10 +33,10 @@ Heavy web dashboards eat up RAM and CPU on your home server. **ImmichPulse** giv
 Install the latest pre-compiled binary directly without needing Go installed:
 
 ```bash
-curl -fsSL https://githubusercontent.com | bash
+curl -fsSL https://raw.githubusercontent.com/merobiju/immich-pulse/main/install.sh | bash
 ```
 
-Or download pre-compiled binaries manually from the [**Releases Page**](https://github.com) on the right.
+Or download pre-compiled binaries manually from the [**Releases Page**](https://github.com/merobiju/immich-pulse/releases/latest) on the right.
 
 ---
 
@@ -82,7 +82,7 @@ sudo rm -f /usr/local/bin/immich /usr/local/bin/immich-pulse
 
 <div align="center">
 
-### 👨‍💻 Crafted with ❤️ in Nepal 🇳🇵 by **[Bijaya Pokhrel](https://github.com)**
+### 👨‍💻 Crafted with ❤️ in Nepal 🇳🇵 by **[Bijaya Pokhrel](https://github.com/merobiju)**
 
 **If ImmichPulse saved you time or looks cool on your server, please drop a ⭐ Star on this repo!**
 
