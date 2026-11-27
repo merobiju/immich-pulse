@@ -294,16 +294,22 @@ func collectData(prev SysData) SysData {
 			}
 		}
 	}()
-		go func() {
-		defer wg.Done()
-		srvCont := runCmdTimeout(time.Second, `docker ps --format "{{.Names}}" 2>/dev/null | grep -E "immich[_-]server" | head -1`)
-		if srvCont != "" {
-			d.ImmichVer = runCmdTimeout(2*time.Second, fmt.Sprintf(`docker exec %s cat /app/immich/server/package.json /usr/src/app/server/package.json /usr/src/app/package.json 2>/dev/null | grep -m1 '"version"' | cut -d'"' -f4`, srvCont))
-		}
-		if d.ImmichVer == "" {
-			d.ImmichVer = "N/A"
-		} else if !strings.HasPrefix(d.ImmichVer, "v") {
-			d.ImmichVer = "v" + d.ImmichVer
+go func() {
+defer wg.Done()
+srvCont := runCmdTimeout(time.Second, `docker ps --format "{{.Names}}" 2>/dev/null | grep -E "immich[_-]server" | head -1`)
+if srvCont != "" {
+verJSON := runCmdTimeout(2*time.Second, fmt.Sprintf(`docker exec %s sh -c 'curl -sf http://localhost:2283/api/server/version || wget -qO- http://localhost:2283/api/server/version' 2>/dev/null`, srvCont))
+var vObj struct {
+Major int `json:"major"`
+Minor int `json:"minor"`
+Patch int `json:"patch"`
+}
+if json.Unmarshal([]byte(verJSON), &vObj) == nil && (vObj.Major > 0 || vObj.Minor > 0) {
+d.ImmichVer = fmt.Sprintf("v%d.%d.%d", vObj.Major, vObj.Minor, vObj.Patch)
+}
+}
+if d.ImmichVer == "" {
+d.ImmichVer = "N/A"
 }
 d.DockerVer = runCmdTimeout(time.Second, "docker --version 2>/dev/null | awk '{print $3}' | tr -d ','")
 if d.DockerVer == "" {
@@ -324,8 +330,8 @@ res := runCmdTimeout(2*time.Second, sqlCmd)
 parts := strings.Split(res, "|")
 if len(parts) == 3 {
 d.PhotoCount, d.VideoCount, d.UserCount = parts[0], parts[1], parts[2]
-			}
-		}
+}
+}
 		if d.PhotoCount == "" {
 			d.PhotoCount = "0"
 		}
