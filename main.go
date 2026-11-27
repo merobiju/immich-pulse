@@ -304,26 +304,26 @@ func collectData(prev SysData) SysData {
 			d.ImmichVer = "N/A"
 		} else if !strings.HasPrefix(d.ImmichVer, "v") {
 			d.ImmichVer = "v" + d.ImmichVer
-		}
-		d.DockerVer = runCmdTimeout(time.Second, "docker --version 2>/dev/null | awk '{print $3}' | tr -d ','")
-		if d.DockerVer == "" {
-			d.DockerVer = "N/A"
-		}
-		pgCont := runCmdTimeout(time.Second, `docker ps --format "{{.Names}}" 2>/dev/null | grep -E "immich[_-]postgres" | head -1`)
-		if pgCont != "" {
-			dbU := runCmdTimeout(time.Second, fmt.Sprintf(`docker exec %s env 2>/dev/null | grep POSTGRES_USER | cut -d= -f2`, pgCont))
-			if dbU == "" {
-				dbU = "postgres"
-			}
-			dbN := runCmdTimeout(time.Second, fmt.Sprintf(`docker exec %s env 2>/dev/null | grep POSTGRES_DB | cut -d= -f2`, pgCont))
-			if dbN == "" {
-				dbN = "immich"
-			}
-			q := `SELECT (SELECT count(*) FROM asset WHERE type='IMAGE' AND "deletedAt" IS NULL), (SELECT count(*) FROM asset WHERE type='VIDEO' AND "deletedAt" IS NULL), (SELECT count(*) FROM "user" WHERE "deletedAt" IS NULL);`
-			res := runCmdTimeout(2*time.Second, fmt.Sprintf(`docker exec %s psql -U %s -d %s -t -A -F'|' -c '%s' 2>/dev/null`, pgCont, dbU, dbN, q))
-			parts := strings.Split(res, "|")
-			if len(parts) == 3 {
-				d.PhotoCount, d.VideoCount, d.UserCount = parts[0], parts[1], parts[2]
+}
+d.DockerVer = runCmdTimeout(time.Second, "docker --version 2>/dev/null | awk '{print $3}' | tr -d ','")
+if d.DockerVer == "" {
+d.DockerVer = "N/A"
+}
+pgCont := runCmdTimeout(time.Second, `docker ps --format "{{.Names}}" 2>/dev/null | grep -E "immich[_-]postgres" | head -1`)
+if pgCont != "" {
+dbU := runCmdTimeout(time.Second, fmt.Sprintf(`docker exec %s env 2>/dev/null | grep POSTGRES_USER | cut -d= -f2`, pgCont))
+if dbU == "" {
+dbU = "postgres"
+}
+dbN := runCmdTimeout(time.Second, fmt.Sprintf(`docker exec %s env 2>/dev/null | grep POSTGRES_DB | cut -d= -f2`, pgCont))
+if dbN == "" {
+dbN = "immich"
+}
+sqlCmd := fmt.Sprintf(`printf 'SELECT (SELECT count(*) FROM asset WHERE type='\''IMAGE'\'' AND "deletedAt" IS NULL), (SELECT count(*) FROM asset WHERE type='\''VIDEO'\'' AND "deletedAt" IS NULL), (SELECT count(*) FROM "user" WHERE "deletedAt" IS NULL);\n' | docker exec -i %s psql -U %s -d %s -t -A -F'|' 2>/dev/null`, pgCont, dbU, dbN)
+res := runCmdTimeout(2*time.Second, sqlCmd)
+parts := strings.Split(res, "|")
+if len(parts) == 3 {
+d.PhotoCount, d.VideoCount, d.UserCount = parts[0], parts[1], parts[2]
 			}
 		}
 		if d.PhotoCount == "" {
