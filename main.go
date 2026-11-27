@@ -17,8 +17,9 @@ import (
 "github.com/shirou/gopsutil/v3/host"
 "github.com/shirou/gopsutil/v3/load"
 "github.com/shirou/gopsutil/v3/mem"
-"github.com/shirou/gopsutil/v3/net")
-const appVersion = "v2.0.0"
+"github.com/shirou/gopsutil/v3/net"
+)
+const appVersion = "v2.0.2"
 type PeerInfo struct {
 	Name   string
 	IP     string
@@ -293,12 +294,11 @@ func collectData(prev SysData) SysData {
 			}
 		}
 	}()
-
-	go func() {
+		go func() {
 		defer wg.Done()
 		srvCont := runCmdTimeout(time.Second, `docker ps --format "{{.Names}}" 2>/dev/null | grep -E "immich[_-]server" | head -1`)
 		if srvCont != "" {
-			d.ImmichVer = runCmdTimeout(2*time.Second, fmt.Sprintf(`docker exec %s cat /usr/src/app/package.json 2>/dev/null | grep -m1 '"version"' | cut -d'"' -f4`, srvCont))
+			d.ImmichVer = runCmdTimeout(2*time.Second, fmt.Sprintf(`docker exec %s cat /app/immich/server/package.json /usr/src/app/server/package.json /usr/src/app/package.json 2>/dev/null | grep -m1 '"version"' | cut -d'"' -f4`, srvCont))
 		}
 		if d.ImmichVer == "" {
 			d.ImmichVer = "N/A"
