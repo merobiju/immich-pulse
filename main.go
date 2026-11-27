@@ -19,7 +19,7 @@ import (
 "github.com/shirou/gopsutil/v3/mem"
 "github.com/shirou/gopsutil/v3/net"
 )
-const appVersion = "v2.0.2"
+const appVersion = "v3.0.0"
 type PeerInfo struct {
 	Name   string
 	IP     string
